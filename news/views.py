@@ -1,9 +1,12 @@
-from django.shortcuts import render
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.shortcuts import render, redirect
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from .models import *
 from .filters import PostFilter
 from django.urls import reverse_lazy
 from .forms import PostForm
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.decorators import login_required
 
 
 def news(request):
@@ -55,3 +58,37 @@ class PostDelete(DeleteView):
     model = Post
     template_name = 'news_delete.html'
     success_url = reverse_lazy('news')
+
+
+class IndexView(LoginRequiredMixin, TemplateView):
+    template_name = 'prodected_page.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_not_author'] = not self.request.user.groups.filter(name='author').exists()
+        return context
+
+
+class BaseRegisterView(CreateView):
+    model = User
+    form_class = BaseRegisterForm
+    success_url = ''
+
+
+@login_required
+def upgrade_me(request):
+    user = request.user
+    author_group = Group.objects.get(name='author')
+    if not request.user.groups.filter(name='author').exists():
+        author_group.user_set.add(user)
+    return redirect('/')
+
+
+class View:
+    pass
+
+
+class MyView(PermissionRequiredMixin, View):
+    permission_required = ('<app>.<action>_<model>',
+                           '<app>.<action>_<model>')
+
